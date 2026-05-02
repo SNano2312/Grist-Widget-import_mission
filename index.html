@@ -1,105 +1,349 @@
 
-<h2 class="sr-only">Diagnostic approfondi Excel</h2>
+<h2 class="sr-only">Widget Grist — Import Excel filtré par centre financier</h2>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-sans); color: var(--color-text-primary); }
-.body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.header { padding: 1.1rem 1.5rem .9rem; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; }
+.header-icon { width: 30px; height: 30px; border-radius: var(--border-radius-md); background: #E6F1FB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-text h1 { font-size: 14px; font-weight: 500; }
+.header-text p { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.body { padding: 1.1rem 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
 .lbl { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-secondary); margin-bottom: 7px; }
-.drop-zone { border: 1.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 1.5rem; text-align: center; cursor: pointer; background: var(--color-background-secondary); }
+.drop-zone { border: 1.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 1.6rem 1.2rem; text-align: center; cursor: pointer; background: var(--color-background-secondary); transition: background .15s, border-color .15s; }
 .drop-zone:hover { border-color: #378ADD; background: #E6F1FB; }
-.mono { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); padding: 10px 14px; font-size: 11px; font-family: var(--font-mono); line-height: 2; max-height: 350px; overflow-y: auto; }
-.mono b { color: #185FA5; }
-.mono .warn { color: #854F0B; font-weight: 600; }
-.mono .ok { color: #3B6D11; font-weight: 600; }
-.hidden { display: none !important; }
-input[type=file] { display: none; }
+.drop-zone.has-file { border-style: solid; border-color: #378ADD; background: #E6F1FB; }
+.drop-zone p { font-size: 12px; color: var(--color-text-secondary); }
+.drop-zone strong { color: var(--color-text-primary); font-weight: 500; }
+.fname { font-size: 12px; font-weight: 500; color: #0C447C; margin-top: 6px; }
+.row { display: flex; gap: 8px; }
+.row input { flex: 1; font-size: 13px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; background: #E6F1FB; color: #0C447C; font-size: 12px; font-weight: 500; padding: 3px 10px 3px 12px; border-radius: 100px; border: 0.5px solid #B5D4F4; }
+.tag button { background: none; border: none; cursor: pointer; color: #185FA5; font-size: 15px; line-height: 1; padding: 0; }
+.tag button:hover { color: #E24B4A; }
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.sc { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 9px 11px; }
+.sc .sl { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+.sc .sv { font-size: 19px; font-weight: 500; }
+.blue{color:#185FA5}.green{color:#3B6D11}.amber{color:#854F0B}
+.pbox { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); max-height: 200px; overflow: auto; margin-top: 9px; }
+table { width: 100%; font-size: 11px; border-collapse: collapse; }
+th { background: var(--color-background-primary); padding: 5px 9px; text-align: left; font-weight: 500; border-bottom: 0.5px solid var(--color-border-tertiary); position: sticky; top: 0; white-space: nowrap; }
+td { padding: 4px 9px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+tr:last-child td { border-bottom: none; }
+.hl { color: #185FA5; font-weight: 500; }
+.pcount { font-size: 11px; color: var(--color-text-secondary); padding: 5px 9px; border-top: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); }
+.acts { display: flex; gap: 8px; }
+.bp { flex:1; padding: 9px 16px; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid #185FA5; background: #185FA5; color: white; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background .12s; }
+.bp:hover { background: #0C447C; }
+.bp:disabled { background: var(--color-background-secondary); border-color: var(--color-border-tertiary); color: var(--color-text-secondary); cursor: not-allowed; }
+.bs { padding: 9px 13px; border-radius: var(--border-radius-md); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-primary); }
+.bs:hover { background: var(--color-background-secondary); }
+.bs:disabled { opacity: .45; cursor: not-allowed; }
+.sb { border-radius: var(--border-radius-md); padding: 9px 13px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; }
+.sb.ok{background:#EAF3DE;color:#27500A} .sb.err{background:#FCEBEB;color:#791F1F} .sb.warn{background:#FAEEDA;color:#633806} .sb.info{background:#E6F1FB;color:#0C447C}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.dok{background:#3B6D11}.derr{background:#A32D2D}.dwarn{background:#854F0B}.di{background:#185FA5}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.progress { font-size: 11px; color: var(--color-text-secondary); margin-top: 6px; }
+.hidden{display:none!important}
+input[type=file]{display:none}
 </style>
+
+<div class="header">
+  <div class="header-icon">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Import Excel — filtrage par centre financier</h1>
+    <p>Filtre sur les 4 premiers caractères de "Centre de coût" (ex: 0236)</p>
+  </div>
+</div>
+
 <div class="body">
+
   <div>
-    <div class="lbl">Diagnostic bas niveau — chargez votre fichier</div>
+    <div class="lbl">1 · Fichier Excel</div>
     <div class="drop-zone" id="dz">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 7px;display:block;color:var(--color-text-secondary)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      <p style="font-size:13px;color:var(--color-text-secondary)"><strong style="color:var(--color-text-primary)">Glissez votre fichier ici</strong> ou cliquez</p>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 7px;display:block;color:var(--color-text-secondary)">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p><strong>Glissez votre fichier .xlsx ici</strong> ou cliquez</p>
+      <div class="fname hidden" id="fname"></div>
+      <div class="progress hidden" id="prog"></div>
     </div>
     <input type="file" id="fi" accept=".xlsx,.xls">
   </div>
-  <div id="out" class="hidden">
-    <div class="lbl">Résultat</div>
-    <div class="mono" id="log"></div>
+
+  <div>
+    <div class="lbl">2 · Centres financiers à importer</div>
+    <div class="row">
+      <input type="text" id="cfi" placeholder="Ex: 0236 (4 premiers caractères)" style="font-size:13px;">
+      <button class="bs" id="addbtn">Ajouter</button>
+    </div>
+    <div class="tags" id="tags">
+      <span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>
+    </div>
   </div>
+
+  <div id="prevSec" class="hidden">
+    <div class="lbl">3 · Résultat</div>
+    <div class="stats">
+      <div class="sc"><div class="sl">Lignes totales</div><div class="sv blue" id="stot">—</div></div>
+      <div class="sc"><div class="sl">Lignes filtrées</div><div class="sv green" id="sfil">—</div></div>
+      <div class="sc"><div class="sl">Colonnes</div><div class="sv amber" id="scol">—</div></div>
+    </div>
+    <div class="pbox">
+      <table id="ptbl"></table>
+      <div class="pcount" id="pcnt"></div>
+    </div>
+  </div>
+
+  <div id="sta" class="hidden"></div>
+
+  <div class="acts">
+    <button class="bs" id="prevbtn" disabled>Aperçu</button>
+    <button class="bp" id="impbtn" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Sauvegarder dans Grist
+    </button>
+  </div>
+
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
+  const CF_COL = 'Centre de coût';
+  let allRows = [], headers = [], filtered = [], centres = [];
+
   const dz = document.getElementById('dz');
   const fi = document.getElementById('fi');
-  const out = document.getElementById('out');
-  const log = document.getElementById('log');
+  const fnameEl = document.getElementById('fname');
+  const progEl = document.getElementById('prog');
+  const cfi = document.getElementById('cfi');
+  const addbtn = document.getElementById('addbtn');
+  const tagsEl = document.getElementById('tags');
+  const prevSec = document.getElementById('prevSec');
+  const ptbl = document.getElementById('ptbl');
+  const pcnt = document.getElementById('pcnt');
+  const sta = document.getElementById('sta');
+  const prevbtn = document.getElementById('prevbtn');
+  const impbtn = document.getElementById('impbtn');
+  const stot = document.getElementById('stot');
+  const sfil = document.getElementById('sfil');
+  const scol = document.getElementById('scol');
 
   dz.addEventListener('click', () => fi.click());
   fi.addEventListener('change', e => load(e.target.files[0]));
-  dz.addEventListener('dragover', e => { e.preventDefault(); });
-  dz.addEventListener('drop', e => { e.preventDefault(); load(e.dataTransfer.files[0]); });
-
-  function add(html) { log.innerHTML += html + '<br>'; }
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor='#378ADD'; });
+  dz.addEventListener('dragleave', () => dz.style.borderColor='');
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor=''; load(e.dataTransfer.files[0]); });
 
   function load(file) {
-    log.innerHTML = '';
-    out.classList.remove('hidden');
+    if (!file) return;
+    allRows = []; headers = []; filtered = [];
+    prevSec.classList.add('hidden');
+    progEl.textContent = 'Lecture en cours…';
+    progEl.classList.remove('hidden');
+    fnameEl.classList.add('hidden');
+    showSta('info', 'Lecture du fichier en cours, veuillez patienter…');
+
     const reader = new FileReader();
     reader.onload = e => {
-      const wb = XLSX.read(e.target.result, { type: 'array', raw: false });
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', raw: false, cellDates: false, dense: false });
+        const ws = wb.Sheets[wb.SheetNames[0]];
 
-      add('Feuilles : <b>' + wb.SheetNames.join(', ') + '</b>');
-      const ws = wb.Sheets[wb.SheetNames[0]];
+        // Recalculer la vraie plage depuis toutes les clés de cellules
+        const cellKeys = Object.keys(ws).filter(k => !k.startsWith('!'));
+        let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+        cellKeys.forEach(addr => {
+          try {
+            const ref = XLSX.utils.decode_cell(addr);
+            if (ref.r < minR) minR = ref.r;
+            if (ref.r > maxR) maxR = ref.r;
+            if (ref.c < minC) minC = ref.c;
+            if (ref.c > maxC) maxC = ref.c;
+          } catch(e) {}
+        });
 
-      const ref = ws['!ref'];
-      add('ws[\'!ref\'] = <b>' + ref + '</b>');
+        progEl.textContent = 'Plage réelle : lignes ' + (minR+1) + ' à ' + (maxR+1) + ', colonnes ' + (minC+1) + ' à ' + (maxC+1);
 
-      const range = XLSX.utils.decode_range(ref || 'A1');
-      add('range.s.r=' + range.s.r + '  range.s.c=' + range.s.c);
-      add('range.e.r=' + range.e.r + '  range.e.c=' + range.e.c);
-      add('→ Nombre total de lignes dans la plage : <b>' + (range.e.r - range.s.r + 1) + '</b>');
-      add('─────────────────────────────');
-
-      // Tester quelques cellules clés
-      const testCells = ['A1','Y1','A2','Y2','A3','Y3','A4','Y4','A5','Y5'];
-      testCells.forEach(addr => {
-        const cell = ws[addr];
-        if (cell) {
-          add(addr + ' → <b>"' + cell.v + '"</b>  (type=' + cell.t + ')');
-        } else {
-          add(addr + ' → <span class="warn">(cellule absente)</span>');
+        // Lire les en-têtes (ligne minR)
+        headers = [];
+        for (let c = minC; c <= maxC; c++) {
+          const cell = ws[XLSX.utils.encode_cell({ r: minR, c })];
+          headers.push(cell ? String(cell.v).trim() : '__col_' + c);
         }
-      });
 
-      add('─────────────────────────────');
+        const cfColIdx = headers.indexOf(CF_COL);
 
-      // Compter les cellules présentes
-      const allKeys = Object.keys(ws).filter(k => !k.startsWith('!'));
-      add('Total de cellules non vides dans la feuille : <b>' + allKeys.length + '</b>');
+        // Lire les données (lignes minR+1 à maxR)
+        allRows = [];
+        for (let r = minR + 1; r <= maxR; r++) {
+          const row = {};
+          let hasData = false;
+          for (let c = minC; c <= maxC; c++) {
+            const cell = ws[XLSX.utils.encode_cell({ r, c })];
+            const val = cell !== undefined ? String(cell.v) : '';
+            row[headers[c - minC]] = val;
+            if (val.trim()) hasData = true;
+          }
+          if (hasData) allRows.push(row);
+        }
 
-      // Quelle est la première cellule avec une valeur en colonne Y ?
-      const yCells = allKeys.filter(k => k.startsWith('Y')).sort();
-      add('Cellules colonne Y présentes : <b>' + yCells.slice(0,10).join(', ') + (yCells.length > 10 ? '…' : '') + '</b>');
+        dz.classList.add('has-file');
+        fnameEl.textContent = file.name + ' — ' + allRows.length + ' lignes, ' + headers.length + ' colonnes';
+        fnameEl.classList.remove('hidden');
+        progEl.classList.add('hidden');
+        updateBtns();
 
-      // Tester sheet_to_json avec header:1
-      const arrRaw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-      add('sheet_to_json(header:1) → <b>' + arrRaw.length + ' lignes</b>');
-      if (arrRaw.length > 0) {
-        add('Ligne 0 (longueur ' + arrRaw[0].length + ') : <b>' + JSON.stringify(arrRaw[0].slice(0,5)) + '…</b>');
+        if (cfColIdx === -1) {
+          showSta('err', 'Colonne "' + CF_COL + '" non trouvée. Colonnes détectées : ' + headers.slice(0, 8).join(', ') + '…');
+          return;
+        }
+
+        const samples = allRows.filter(r => r[CF_COL] && r[CF_COL].trim()).slice(0, 4).map(r => '"' + r[CF_COL] + '"').join(', ');
+        showSta('ok', allRows.length + ' lignes chargées. Exemples centre de coût : ' + (samples || '(vide)'));
+
+      } catch(err) {
+        progEl.classList.add('hidden');
+        showSta('err', 'Erreur lecture : ' + err.message);
       }
-      if (arrRaw.length > 1) {
-        add('Ligne 1 : <b>' + JSON.stringify(arrRaw[1].slice(0,5)) + '…</b>');
-      }
-      if (arrRaw.length > 3) {
-        add('Ligne 3 : <b>' + JSON.stringify(arrRaw[3].slice(24, 26)) + '</b> (colonnes X-Y)');
-      }
-
-      add('─────────────────────────────');
-      add('<span class="ok">Copiez tout ce texte et partagez-le.</span>');
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  cfi.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  addbtn.addEventListener('click', add);
+
+  function add() {
+    const v = cfi.value.trim();
+    if (!v) return;
+    if (centres.includes(v)) { showSta('warn', '"' + v + '" déjà dans la liste.'); cfi.value=''; return; }
+    centres.push(v);
+    cfi.value = '';
+    renderTags();
+    updateBtns();
+  }
+
+  function removeTag(cf) { centres = centres.filter(c => c !== cf); renderTags(); updateBtns(); }
+  window.removeTag = removeTag;
+
+  function renderTags() {
+    if (!centres.length) {
+      tagsEl.innerHTML = '<span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>';
+      return;
+    }
+    tagsEl.innerHTML = centres.map(cf =>
+      '<span class="tag">'+cf+'<button onclick="removeTag(\''+cf+'\')">×</button></span>'
+    ).join('');
+  }
+
+  function updateBtns() {
+    const ok = allRows.length > 0 && centres.length > 0 && headers.includes(CF_COL);
+    prevbtn.disabled = !ok;
+    impbtn.disabled = !ok;
+  }
+
+  function doFilter() {
+    filtered = allRows.filter(row => {
+      const val = String(row[CF_COL] || '').trim();
+      return centres.some(prefix => val.startsWith(prefix));
+    });
+  }
+
+  prevbtn.addEventListener('click', () => { doFilter(); renderPreview(); });
+
+  function renderPreview() {
+    stot.textContent = allRows.length.toLocaleString('fr-FR');
+    sfil.textContent = filtered.length.toLocaleString('fr-FR');
+    scol.textContent = headers.length;
+
+    const cfIdx = headers.indexOf(CF_COL);
+    const preview = filtered.slice(0, 50);
+
+    let html = '<thead><tr>' + headers.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>';
+    if (!preview.length) {
+      const samples = allRows.filter(r => r[CF_COL] && r[CF_COL].trim()).slice(0, 5).map(r => '"' + r[CF_COL] + '"').join(', ');
+      html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:var(--color-text-secondary);padding:1.2rem;">Aucune correspondance. Exemples dans le fichier : ' + samples + '</td></tr>';
+    } else {
+      html += preview.map(row =>
+        '<tr>' + headers.map((h, i) =>
+          '<td' + (i===cfIdx?' class="hl"':'') + '>' + (row[h]||'') + '</td>'
+        ).join('') + '</tr>'
+      ).join('');
+    }
+    html += '</tbody>';
+    ptbl.innerHTML = html;
+    pcnt.textContent = filtered.length > 50
+      ? '50 premières lignes sur ' + filtered.length + ' filtrées.'
+      : filtered.length + ' ligne(s) — préfixes : ' + centres.join(', ');
+
+    prevSec.classList.remove('hidden');
+    showSta(filtered.length ? 'ok' : 'warn',
+      filtered.length
+        ? filtered.length + ' ligne(s) trouvée(s).'
+        : 'Aucune ligne ne correspond. Vérifiez le préfixe — exemples de valeurs dans le fichier : ' +
+          allRows.filter(r => r[CF_COL] && r[CF_COL].trim()).slice(0,3).map(r=>'"'+r[CF_COL]+'"').join(', ')
+    );
+  }
+
+  impbtn.addEventListener('click', async () => {
+    doFilter();
+    if (!filtered.length) { renderPreview(); return; }
+    impbtn.disabled = true;
+    impbtn.innerHTML = '<div class="spin"></div> Import en cours…';
+    try {
+      if (typeof grist === 'undefined') {
+        await new Promise(r => setTimeout(r, 900));
+        showSta('ok', '[Démo] ' + filtered.length + ' lignes prêtes. Connectez ce widget à Grist pour l\'import réel.');
+      } else {
+        await gristWrite();
+        showSta('ok', 'Import terminé — ' + filtered.length + ' ligne(s) sauvegardées dans "Import_CF".');
+      }
+    } catch(err) {
+      showSta('err', 'Erreur import : ' + err.message);
+    }
+    impbtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Sauvegarder dans Grist';
+    impbtn.disabled = false;
+  });
+
+  async function gristWrite() {
+    const tid = 'Import_CF';
+    const tables = await grist.docApi.listTables();
+    if (tables.includes(tid)) {
+      const ex = await grist.docApi.fetchTable(tid);
+      if (ex && ex.id && ex.id.length) {
+        await grist.docApi.applyUserActions([['BulkRemoveRecord', tid, ex.id]]);
+      }
+    } else {
+      const cols = headers.map(h => ({ id: san(h), label: h, type: 'Text' }));
+      await grist.docApi.applyUserActions([['AddTable', tid, cols]]);
+    }
+    const B = 200;
+    for (let i = 0; i < filtered.length; i += B) {
+      const chunk = filtered.slice(i, i + B);
+      const colData = {};
+      headers.forEach(h => { colData[san(h)] = chunk.map(r => r[h] || ''); });
+      await grist.docApi.applyUserActions([['BulkAddRecord', tid, new Array(chunk.length).fill(null), colData]]);
+    }
+  }
+
+  function san(n) { return n.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1'); }
+
+  function showSta(type, msg) {
+    const dot = { ok:'dok', err:'derr', warn:'dwarn', info:'di' };
+    sta.className = 'sb ' + type;
+    sta.innerHTML = '<div class="dot ' + (dot[type]||'di') + '"></div><span>' + msg + '</span>';
+    sta.classList.remove('hidden');
   }
 })();
 </script>
