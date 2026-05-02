@@ -1,154 +1,162 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Import filtré par centre financier</title>
+<meta charset="UTF-8">
+<title>Import filtré par centre financier</title>
 
-  <!-- API Grist -->
-  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<!-- API Grist -->
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
-  <!-- CSV -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<!-- CSV -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <!-- Excel -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <style>
-    body { font-family: Arial, sans-serif; padding: 16px; }
-    label { display:block; margin-top:10px; font-weight:bold; }
-    input, button { margin-top:5px; padding:6px 8px; }
-    #status { margin-top:15px; font-weight:bold; }
-    #tableInfo { margin-top:5px; font-style:italic; color:#555; }
-  </style>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  label { display:block; margin-top:12px; font-weight:bold; }
+  input, button { margin-top:6px; padding:8px; }
+  #status { margin-top:20px; font-weight:bold; }
+  #tableName { margin-top:5px; font-style:italic; color:#555; }
+</style>
 </head>
+
 <body>
-  <h2>Import filtré par centre financier</h2>
+<h2>Import filtré par centre financier</h2>
 
-  <div id="tableInfo">Table cible : (détection en cours…)</div>
+<div id="tableName">Détection de la table…</div>
 
-  <label>Centres financiers (séparés par des virgules) :</label>
-  <input type="text" id="centres" placeholder="Ex : 1101,1203,1402">
+<label>Centres financiers (séparés par des virgules) :</label>
+<input type="text" id="centres" placeholder="Ex : 1101,1203,1402">
 
-  <label>Fichier (CSV ou Excel) :</label>
-  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+<label>Fichier CSV ou Excel :</label>
+<input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
 
-  <button id="importBtn">Importer dans Grist</button>
+<button id="importBtn">Importer dans Grist</button>
 
-  <div id="status"></div>
+<div id="status"></div>
 
-  <script>
-    let targetTableId = null;
+<script>
+let targetTableId = null;
 
-    // Initialisation Grist + détection automatique de la table
-    window.grist.ready({ requiredAccess: 'full' });
+// Initialisation Grist
+window.grist.ready({ requiredAccess: 'full' });
 
-    async function detectTable() {
-      try {
-        const tables = await grist.docApi.listTables();
-        if (!tables || tables.length === 0) {
-          document.getElementById('tableInfo').innerText =
-            "Aucune table trouvée dans ce document.";
-          return;
-        }
-        // On prend la première table du document
-        targetTableId = tables[0].id;
-        document.getElementById('tableInfo').innerText =
-          "Table cible détectée : " + tables[0].tableName + " (id: " + targetTableId + ")";
-      } catch (e) {
-        document.getElementById('tableInfo').innerText =
-          "Erreur lors de la détection de la table : " + e;
-      }
+// Détection automatique de la table
+async function detectTable() {
+  try {
+    const tables = await grist.docApi.listTables();
+
+    if (!tables || tables.length === 0) {
+      document.getElementById("tableName").innerText =
+        "Aucune table trouvée dans ce document.";
+      return;
     }
 
-    detectTable();
+    // On prend la première table du document
+    targetTableId = tables[0].id;
 
-    document.getElementById("importBtn").addEventListener("click", async () => {
-      if (!targetTableId) {
-        alert("Impossible de détecter la table cible dans Grist.");
-        return;
-      }
+    document.getElementById("tableName").innerText =
+      "Table détectée : " + tables[0].tableName;
 
-      const centresInput = document.getElementById("centres").value.trim();
-      if (!centresInput) {
-        alert("Merci d’indiquer au moins un centre financier (ex : 1101,1203).");
-        return;
-      }
-      const centres = centresInput.split(",").map(c => c.trim()).filter(c => c.length > 0);
+  } catch (e) {
+    document.getElementById("tableName").innerText =
+      "Erreur lors de la détection de la table : " + e;
+  }
+}
 
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) {
-        alert("Merci de sélectionner un fichier CSV ou Excel.");
-        return;
-      }
+detectTable();
 
-      document.getElementById("status").innerText = "Lecture du fichier…";
+document.getElementById("importBtn").addEventListener("click", async () => {
 
-      const ext = file.name.split(".").pop().toLowerCase();
+  if (!targetTableId) {
+    alert("Impossible de détecter la table cible dans Grist.");
+    return;
+  }
 
-      if (ext === "csv") {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: async (results) => {
-            await processRows(results.data, centres);
-          },
-          error: (err) => {
-            document.getElementById("status").innerText = "Erreur CSV : " + err;
-          }
-        });
-      } else if (ext === "xlsx" || ext === "xls") {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: "array" });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-            await processRows(rows, centres);
-          } catch (err) {
-            document.getElementById("status").innerText = "Erreur Excel : " + err;
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      } else {
-        alert("Format non supporté. Utilise CSV, XLSX ou XLS.");
-      }
+  const centresInput = document.getElementById("centres").value.trim();
+  if (!centresInput) {
+    alert("Merci d’indiquer au moins un centre financier.");
+    return;
+  }
+
+  const centres = centresInput.split(",").map(c => c.trim());
+
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) {
+    alert("Merci de sélectionner un fichier CSV ou Excel.");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Lecture du fichier…";
+
+  const ext = file.name.split(".").pop().toLowerCase();
+
+  if (ext === "csv") {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: results => processRows(results.data, centres),
+      error: err => document.getElementById("status").innerText = "Erreur CSV : " + err
     });
-
-    async function processRows(rows, centres) {
-      if (!rows || rows.length === 0) {
-        document.getElementById("status").innerText = "Aucune ligne trouvée dans le fichier.";
-        return;
-      }
-
-      const filtered = rows.filter(r => {
-        const cc = (r["Centre de coût"] || "").toString().substring(0, 4);
-        return centres.includes(cc);
-      });
-
-      document.getElementById("status").innerText =
-        filtered.length + " lignes retenues sur " + rows.length;
-
-      if (filtered.length === 0) {
-        alert("Aucune ligne ne correspond aux centres financiers indiqués.");
-        return;
-      }
-
-      const actions = filtered.map(r => ({
-        action: "AddRecord",
-        tableId: targetTableId,
-        fields: r
-      }));
-
+  }
+  else if (ext === "xlsx" || ext === "xls") {
+    const reader = new FileReader();
+    reader.onload = e => {
       try {
-        await grist.docApi.applyUserActions(actions);
-        document.getElementById("status").innerText = "Import terminé : " +
-          filtered.length + " lignes importées.";
-      } catch (e) {
-        document.getElementById("status").innerText =
-          "Erreur lors de l’import dans Grist : " + e;
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        processRows(rows, centres);
+      } catch (err) {
+        document.getElementById("status").innerText = "Erreur Excel : " + err;
       }
-    }
-  </script>
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  else {
+    alert("Format non supporté. Utilise CSV, XLSX ou XLS.");
+  }
+});
+
+async function processRows(rows, centres) {
+
+  if (!rows || rows.length === 0) {
+    document.getElementById("status").innerText = "Aucune donnée trouvée.";
+    return;
+  }
+
+  const filtered = rows.filter(r => {
+    const cc = (r["Centre de coût"] || "").toString().substring(0, 4);
+    return centres.includes(cc);
+  });
+
+  document.getElementById("status").innerText =
+    filtered.length + " lignes retenues sur " + rows.length;
+
+  if (filtered.length === 0) {
+    alert("Aucune ligne ne correspond aux centres financiers indiqués.");
+    return;
+  }
+
+  const actions = filtered.map(r => ({
+    action: "AddRecord",
+    tableId: targetTableId,
+    fields: r
+  }));
+
+  try {
+    await grist.docApi.applyUserActions(actions);
+    document.getElementById("status").innerText =
+      "Import terminé : " + filtered.length + " lignes importées.";
+  } catch (e) {
+    document.getElementById("status").innerText =
+      "Erreur lors de l’import : " + e;
+  }
+}
+</script>
+
 </body>
 </html>
