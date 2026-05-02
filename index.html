@@ -1,446 +1,131 @@
 
-<h2 class="sr-only">Widget Grist — Import Excel filtré par centre financier</h2>
-
+<h2 class="sr-only">Diagnostic colonnes Excel</h2>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font-sans); color: var(--color-text-primary); }
-
-  .header {
-    padding: 1.25rem 1.5rem 1rem;
-    border-bottom: 0.5px solid var(--color-border-tertiary);
-    display: flex; align-items: center; gap: 10px;
-  }
-  .header-icon {
-    width: 32px; height: 32px; border-radius: var(--border-radius-md);
-    background: #E6F1FB; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .header-text h1 { font-size: 15px; font-weight: 500; }
-  .header-text p { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
-
-  .body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
-
-  .section-label {
-    font-size: 11px; font-weight: 500; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--color-text-secondary); margin-bottom: 8px;
-  }
-
-  .drop-zone {
-    border: 1.5px dashed var(--color-border-secondary);
-    border-radius: var(--border-radius-lg);
-    padding: 2rem 1.5rem; text-align: center; cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    background: var(--color-background-secondary);
-  }
-  .drop-zone:hover, .drop-zone.drag-over { border-color: #378ADD; background: #E6F1FB; }
-  .drop-zone p { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
-  .drop-zone strong { color: var(--color-text-primary); font-weight: 500; }
-  .drop-zone.has-file { border-style: solid; border-color: #378ADD; background: #E6F1FB; }
-  .file-name { font-size: 13px; font-weight: 500; color: #0C447C; margin-top: 6px; }
-
-  .cf-input-row { display: flex; gap: 8px; }
-  .cf-input-row input { flex: 1; }
-  .cf-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .tag {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: #E6F1FB; color: #0C447C;
-    font-size: 12px; font-weight: 500;
-    padding: 3px 10px 3px 12px; border-radius: 100px;
-    border: 0.5px solid #B5D4F4;
-  }
-  .tag button { background: none; border: none; cursor: pointer; padding: 0; color: #185FA5; font-size: 15px; line-height: 1; }
-  .tag button:hover { color: #E24B4A; }
-
-  .debug-box {
-    border: 0.5px solid var(--color-border-tertiary);
-    border-radius: var(--border-radius-md);
-    background: var(--color-background-secondary);
-    padding: 8px 12px; font-size: 11px; color: var(--color-text-secondary);
-    font-family: var(--font-mono); line-height: 1.7;
-  }
-
-  .preview-box {
-    border: 0.5px solid var(--color-border-tertiary);
-    border-radius: var(--border-radius-md);
-    background: var(--color-background-secondary);
-    max-height: 220px; overflow: auto;
-  }
-  .preview-table { width: 100%; font-size: 11px; border-collapse: collapse; }
-  .preview-table th {
-    background: var(--color-background-primary);
-    padding: 6px 10px; text-align: left; font-weight: 500;
-    border-bottom: 0.5px solid var(--color-border-tertiary);
-    position: sticky; top: 0; white-space: nowrap;
-  }
-  .preview-table td {
-    padding: 5px 10px; border-bottom: 0.5px solid var(--color-border-tertiary);
-    white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
-  }
-  .preview-table tr:last-child td { border-bottom: none; }
-  .preview-table tr:hover td { background: var(--color-background-secondary); }
-  .highlight { color: #185FA5; font-weight: 500; }
-  .preview-count { font-size: 12px; color: var(--color-text-secondary); padding: 6px 10px; border-top: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); }
-
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
-  .stat-card .s-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
-  .stat-card .s-value { font-size: 20px; font-weight: 500; }
-  .s-blue { color: #185FA5; } .s-green { color: #3B6D11; } .s-amber { color: #854F0B; }
-
-  .actions { display: flex; gap: 8px; padding-top: 4px; }
-  .btn-primary {
-    flex: 1; padding: 9px 16px; border-radius: var(--border-radius-md);
-    font-size: 13px; font-weight: 500; cursor: pointer;
-    border: 0.5px solid #185FA5; background: #185FA5; color: white;
-    transition: background 0.12s, transform 0.1s;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .btn-primary:hover { background: #0C447C; }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-primary:disabled { background: var(--color-background-secondary); border-color: var(--color-border-tertiary); color: var(--color-text-secondary); cursor: not-allowed; transform: none; }
-  .btn-secondary {
-    padding: 9px 14px; border-radius: var(--border-radius-md);
-    font-size: 13px; font-weight: 500; cursor: pointer;
-    border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-primary);
-    transition: background 0.12s;
-  }
-  .btn-secondary:hover { background: var(--color-background-secondary); }
-  .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
-
-  .status-bar { border-radius: var(--border-radius-md); padding: 10px 14px; font-size: 12px; display: flex; align-items: flex-start; gap: 8px; }
-  .status-bar.info { background: #E6F1FB; color: #0C447C; }
-  .status-bar.success { background: #EAF3DE; color: #27500A; }
-  .status-bar.error { background: #FCEBEB; color: #791F1F; }
-  .status-bar.warning { background: #FAEEDA; color: #633806; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-  .dot-info { background: #185FA5; } .dot-success { background: #3B6D11; }
-  .dot-error { background: #A32D2D; } .dot-warning { background: #854F0B; }
-
-  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .hidden { display: none !important; }
-  input[type="file"] { display: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); color: var(--color-text-primary); }
+.body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.section-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-secondary); margin-bottom: 8px; }
+.drop-zone {
+  border: 1.5px dashed var(--color-border-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: 1.75rem 1.5rem; text-align: center; cursor: pointer;
+  background: var(--color-background-secondary);
+}
+.drop-zone:hover { border-color: #378ADD; background: #E6F1FB; }
+.drop-zone p { font-size: 13px; color: var(--color-text-secondary); }
+.drop-zone strong { color: var(--color-text-primary); font-weight: 500; }
+.mono-box {
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-secondary);
+  padding: 10px 14px; font-size: 11px; font-family: var(--font-mono);
+  line-height: 1.9; max-height: 400px; overflow-y: auto;
+  color: var(--color-text-primary);
+}
+.mono-box b { color: #185FA5; }
+.mono-box .col-y { background: #FAEEDA; color: #633806; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+.mono-box .match { background: #EAF3DE; color: #27500A; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+.hidden { display: none !important; }
+input[type="file"] { display: none; }
+.note { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; padding: 8px 12px; background: #E6F1FB; border-radius: var(--border-radius-md); color: #0C447C; }
 </style>
 
-<div class="header">
-  <div class="header-icon">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="1.8">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-    </svg>
-  </div>
-  <div class="header-text">
-    <h1>Import Excel — filtrage par centre financier</h1>
-    <p>Filtre sur les 4 premiers chiffres de la colonne "Centre de coût"</p>
-  </div>
-</div>
-
 <div class="body">
-
   <div>
-    <div class="section-label">1 · Fichier Excel</div>
+    <div class="section-label">Outil de diagnostic — chargez votre fichier Excel</div>
     <div class="drop-zone" id="dropZone">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--color-text-secondary)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block;color:var(--color-text-secondary)">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
-      <p><strong>Glissez un fichier .xlsx ici</strong> ou cliquez pour parcourir</p>
-      <div class="file-name hidden" id="fileName"></div>
+      <p><strong>Glissez votre fichier Excel ici</strong> ou cliquez</p>
+      <p style="font-size:11px;margin-top:4px;">Affiche tous les en-têtes de colonnes trouvés</p>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls">
   </div>
 
-  <div>
-    <div class="section-label">2 · Centres financiers (préfixe du centre de coût)</div>
-    <div class="cf-input-row">
-      <input type="text" id="cfInput" placeholder="Ex: 1234 ou 12 (préfixe libre)" style="font-size:13px;">
-      <button class="btn-secondary" id="addCfBtn" style="white-space:nowrap;">Ajouter</button>
-    </div>
-    <div class="cf-tags" id="cfTags">
-      <span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>
-    </div>
-  </div>
+  <div id="resultSection" class="hidden">
+    <div class="section-label">En-têtes détectés (toutes les colonnes)</div>
+    <div class="mono-box" id="colList"></div>
 
-  <div id="debugSection" class="hidden">
-    <div class="section-label">Diagnostic — valeurs de la colonne "Centre de coût" (10 premières)</div>
-    <div class="debug-box" id="debugBox"></div>
-  </div>
-
-  <div id="previewSection" class="hidden">
-    <div class="section-label">3 · Résultat du filtrage</div>
-    <div class="stats">
-      <div class="stat-card"><div class="s-label">Lignes totales</div><div class="s-value s-blue" id="statTotal">—</div></div>
-      <div class="stat-card"><div class="s-label">Lignes filtrées</div><div class="s-value s-green" id="statFiltered">—</div></div>
-      <div class="stat-card"><div class="s-label">Colonnes</div><div class="s-value s-amber" id="statCols">—</div></div>
+    <div style="margin-top:1rem;">
+      <div class="section-label">Feuilles disponibles</div>
+      <div class="mono-box" id="sheetList"></div>
     </div>
-    <div class="preview-box" style="margin-top:10px;">
-      <table class="preview-table" id="previewTable"></table>
-      <div class="preview-count" id="previewCount"></div>
+
+    <div style="margin-top:1rem;">
+      <div class="section-label">Cellules brutes A1 à Z1 (ligne d'en-tête réelle)</div>
+      <div class="mono-box" id="rawRow1"></div>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <div class="section-label">Contenu brut de la colonne Y — 5 premières lignes de données</div>
+      <div class="mono-box" id="colYRaw"></div>
     </div>
   </div>
 
-  <div id="statusArea" class="hidden"></div>
-
-  <div class="actions">
-    <button class="btn-secondary" id="previewBtn" disabled>Aperçu</button>
-    <button class="btn-primary" id="importBtn" disabled>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      Sauvegarder dans Grist
-    </button>
-  </div>
-
+  <div class="note">Copiez le résultat ci-dessus et partagez-le — cela permettra d'ajuster le widget d'import en conséquence.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-(function() {
-
-  const dropZone = document.getElementById('dropZone');
+(function(){
+  const drop = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
-  const fileNameEl = document.getElementById('fileName');
-  const cfInput = document.getElementById('cfInput');
-  const addCfBtn = document.getElementById('addCfBtn');
-  const cfTagsEl = document.getElementById('cfTags');
-  const debugSection = document.getElementById('debugSection');
-  const debugBox = document.getElementById('debugBox');
-  const previewSection = document.getElementById('previewSection');
-  const previewTable = document.getElementById('previewTable');
-  const previewCount = document.getElementById('previewCount');
-  const statusArea = document.getElementById('statusArea');
-  const previewBtn = document.getElementById('previewBtn');
-  const importBtn = document.getElementById('importBtn');
-  const statTotal = document.getElementById('statTotal');
-  const statFiltered = document.getElementById('statFiltered');
-  const statCols = document.getElementById('statCols');
-
-  let workbookData = null;
-  let filteredData = null;
-  let headers = [];
-  let centresFinanciers = [];
-  let detectedCFColumn = null;
-
-  const CF_COLUMN_CANDIDATES = ['Centre de coût', 'Centre de cout', 'centre de coût', 'centre de cout', 'CENTRE DE COÛT', 'CENTRE DE COUT'];
-
-  dropZone.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-  });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor='#378ADD'; });
+  drop.addEventListener('dragleave', () => drop.style.borderColor='');
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor=''; handleFile(e.dataTransfer.files[0]); });
 
   function handleFile(file) {
     if (!file) return;
-    if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      showStatus('error', 'Format invalide. Utilisez un fichier .xlsx ou .xls.');
-      return;
-    }
     const reader = new FileReader();
     reader.onload = e => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true, raw: false });
-        const ws = wb.Sheets[wb.SheetNames[0]];
+      const wb = XLSX.read(e.target.result, { type: 'array', raw: false });
+      const sheetList = document.getElementById('sheetList');
+      sheetList.innerHTML = wb.SheetNames.map((s,i) => `<div>Feuille ${i+1} : <b>"${s}"</b></div>`).join('');
 
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
-        workbookData = rows;
-        filteredData = null;
-        headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
 
-        detectedCFColumn = null;
-        for (const candidate of CF_COLUMN_CANDIDATES) {
-          if (headers.includes(candidate)) { detectedCFColumn = candidate; break; }
-        }
-        if (!detectedCFColumn) {
-          const colY = headers[24];
-          if (colY) {
-            detectedCFColumn = colY;
-            showStatus('warning', `Colonne "Centre de coût" non trouvée par nom. Utilisation de la colonne Y : "${colY}". Vérifiez le diagnostic ci-dessous.`);
-          } else {
-            showStatus('error', `Colonne "Centre de coût" introuvable. Colonnes disponibles : ${headers.slice(0,8).join(', ')}…`);
-            return;
-          }
-        }
-
-        const samples = rows.slice(0, 10).map(r => r[detectedCFColumn]);
-        debugBox.innerHTML = samples.map((v, i) =>
-          `Ligne ${i+2} → <b style="color:#185FA5">"${v}"</b> (longueur: ${String(v).length})`
-        ).join('<br>');
-        debugSection.classList.remove('hidden');
-
-        dropZone.classList.add('has-file');
-        fileNameEl.textContent = file.name + ` (${rows.length} lignes, colonne CF: "${detectedCFColumn}")`;
-        fileNameEl.classList.remove('hidden');
-        previewSection.classList.add('hidden');
-        updateButtons();
-
-        if (!statusArea.classList.contains('hidden') && statusArea.className.includes('error')) return;
-        showStatus('info', `Fichier chargé : ${rows.length} lignes. Colonne centre de coût détectée : "${detectedCFColumn}".`);
-      } catch(err) {
-        showStatus('error', 'Impossible de lire le fichier : ' + err.message);
+      // Cellules brutes ligne 1
+      let rawRow1Html = '';
+      for (let c = range.s.c; c <= Math.min(range.e.c, 30); c++) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c });
+        const cell = ws[addr];
+        const val = cell ? cell.v : '(vide)';
+        const colLetter = XLSX.utils.encode_col(c);
+        const isY = colLetter === 'Y';
+        rawRow1Html += `<div>${colLetter}1 : <span class="${isY ? 'col-y' : ''}">"${val}"</span> (type: ${cell ? cell.t : '—'})</div>`;
       }
+      document.getElementById('rawRow1').innerHTML = rawRow1Html || '<div>(aucune cellule)</div>';
+
+      // Colonne Y lignes 2-6
+      let colYHtml = '';
+      for (let r = 1; r <= 5; r++) {
+        const addr = XLSX.utils.encode_cell({ r, c: 24 });
+        const cell = ws[addr];
+        const val = cell ? cell.v : '(vide)';
+        colYHtml += `<div>Y${r+1} : <b>"${val}"</b>${cell ? ' (type: '+cell.t+')' : ''}</div>`;
+      }
+      document.getElementById('colYRaw').innerHTML = colYHtml;
+
+      // En-têtes via sheet_to_json
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const colList = document.getElementById('colList');
+      const ccTerms = ['centre', 'cout', 'coût', 'cost', 'center'];
+      colList.innerHTML = headers.map((h, i) => {
+        const letter = XLSX.utils.encode_col(i);
+        const lower = h.toLowerCase();
+        const isMatch = ccTerms.some(t => lower.includes(t));
+        return `<div>${letter} (${i+1}) : <span class="${isMatch ? 'match' : ''}">"${h}"</span></div>`;
+      }).join('') || '<div>(aucun en-tête trouvé)</div>';
+
+      document.getElementById('resultSection').classList.remove('hidden');
     };
     reader.readAsArrayBuffer(file);
   }
-
-  cfInput.addEventListener('keydown', e => { if (e.key === 'Enter') addCF(); });
-  addCfBtn.addEventListener('click', addCF);
-
-  function addCF() {
-    const val = cfInput.value.trim();
-    if (!val) return;
-    if (!/^\d+$/.test(val)) {
-      showStatus('warning', 'Saisissez uniquement des chiffres pour le préfixe du centre financier.');
-      return;
-    }
-    if (centresFinanciers.includes(val)) {
-      showStatus('warning', `Le centre "${val}" est déjà dans la liste.`);
-      cfInput.value = '';
-      return;
-    }
-    centresFinanciers.push(val);
-    cfInput.value = '';
-    renderTags();
-    updateButtons();
-    clearStatus();
-  }
-
-  function removeTag(cf) {
-    centresFinanciers = centresFinanciers.filter(c => c !== cf);
-    renderTags();
-    updateButtons();
-  }
-  window.removeTag = removeTag;
-
-  function renderTags() {
-    if (centresFinanciers.length === 0) {
-      cfTagsEl.innerHTML = '<span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>';
-      return;
-    }
-    cfTagsEl.innerHTML = centresFinanciers.map(cf =>
-      `<span class="tag">Préfixe : ${cf}<button onclick="removeTag('${cf}')" title="Supprimer">×</button></span>`
-    ).join('');
-  }
-
-  function updateButtons() {
-    const ready = workbookData && centresFinanciers.length > 0 && detectedCFColumn;
-    previewBtn.disabled = !ready;
-    importBtn.disabled = !ready;
-  }
-
-  previewBtn.addEventListener('click', () => { runFilter(); renderPreview(); });
-
-  function matchesFilter(row) {
-    const raw = row[detectedCFColumn];
-    const ccStr = String(raw == null ? '' : raw).trim();
-    const digitsOnly = ccStr.replace(/\D/g, '');
-    return centresFinanciers.some(prefix => {
-      return ccStr.startsWith(prefix) || digitsOnly.startsWith(prefix);
-    });
-  }
-
-  function runFilter() {
-    if (!workbookData || !detectedCFColumn) return;
-    filteredData = workbookData.filter(matchesFilter);
-    return filteredData;
-  }
-
-  function renderPreview() {
-    if (!filteredData) return;
-    const ccIdx = headers.indexOf(detectedCFColumn);
-    const preview = filteredData.slice(0, 50);
-
-    statTotal.textContent = workbookData.length.toLocaleString('fr-FR');
-    statFiltered.textContent = filteredData.length.toLocaleString('fr-FR');
-    statCols.textContent = headers.length;
-
-    let html = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
-    if (preview.length === 0) {
-      html += `<tr><td colspan="${headers.length}" style="text-align:center;color:var(--color-text-secondary);padding:1.5rem;">
-        Aucune ligne ne correspond. Vérifiez le diagnostic ci-dessus pour voir les valeurs réelles.
-      </td></tr>`;
-    } else {
-      html += preview.map(row =>
-        '<tr>' + headers.map((h, i) => {
-          const val = String(row[h] == null ? '' : row[h]);
-          return `<td ${i === ccIdx ? 'class="highlight"' : ''}>${val}</td>`;
-        }).join('') + '</tr>'
-      ).join('');
-    }
-    html += '</tbody>';
-    previewTable.innerHTML = html;
-
-    if (filteredData.length > 50) {
-      previewCount.textContent = `50 premières lignes affichées sur ${filteredData.length} filtrées.`;
-    } else {
-      previewCount.textContent = `${filteredData.length} ligne(s) — préfixes recherchés : ${centresFinanciers.map(p => '"'+p+'"').join(', ')}.`;
-    }
-    previewSection.classList.remove('hidden');
-
-    if (filteredData.length === 0) {
-      const samples = workbookData.slice(0,3).map(r => '"' + String(r[detectedCFColumn]).trim() + '"').join(', ');
-      showStatus('warning', `Aucune correspondance. Exemples de valeurs dans le fichier : ${samples}. Comparez avec vos préfixes.`);
-    } else {
-      showStatus('success', `${filteredData.length} ligne(s) filtrée(s) avec succès.`);
-    }
-  }
-
-  importBtn.addEventListener('click', async () => {
-    runFilter();
-    if (!filteredData || filteredData.length === 0) {
-      renderPreview();
-      showStatus('warning', 'Aucune donnée à importer.');
-      return;
-    }
-    importBtn.disabled = true;
-    importBtn.innerHTML = '<div class="spinner"></div> Import en cours…';
-    try {
-      if (typeof grist === 'undefined') {
-        await new Promise(r => setTimeout(r, 1200));
-        showStatus('success', `[Démo] ${filteredData.length} lignes prêtes. Connectez à Grist pour l'import réel.`);
-      } else {
-        await writeToGrist();
-        showStatus('success', `Import terminé — ${filteredData.length} ligne(s) dans la table "Import_CF".`);
-      }
-    } catch(err) {
-      showStatus('error', 'Erreur import : ' + err.message);
-    }
-    importBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Sauvegarder dans Grist';
-    importBtn.disabled = false;
-  });
-
-  async function writeToGrist() {
-    const tableId = 'Import_CF';
-    const tables = await grist.docApi.listTables();
-    if (tables.includes(tableId)) {
-      const existing = await grist.docApi.fetchTable(tableId);
-      if (existing && existing.id && existing.id.length > 0) {
-        await grist.docApi.applyUserActions([['BulkRemoveRecord', tableId, existing.id]]);
-      }
-    } else {
-      const cols = headers.map(h => ({ id: sanitize(h), label: h, type: 'Text' }));
-      await grist.docApi.applyUserActions([['AddTable', tableId, cols]]);
-    }
-    const BATCH = 200;
-    for (let i = 0; i < filteredData.length; i += BATCH) {
-      const chunk = filteredData.slice(i, i + BATCH);
-      const colData = {};
-      headers.forEach(h => { colData[sanitize(h)] = chunk.map(r => String(r[h] == null ? '' : r[h])); });
-      await grist.docApi.applyUserActions([['BulkAddRecord', tableId, new Array(chunk.length).fill(null), colData]]);
-    }
-  }
-
-  function sanitize(name) { return name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1'); }
-
-  function showStatus(type, msg) {
-    const dots = { info:'dot-info', success:'dot-success', error:'dot-error', warning:'dot-warning' };
-    statusArea.className = `status-bar ${type}`;
-    statusArea.innerHTML = `<div class="status-dot ${dots[type]}"></div><span>${msg}</span>`;
-    statusArea.classList.remove('hidden');
-  }
-  function clearStatus() { statusArea.classList.add('hidden'); }
-
 })();
 </script>
