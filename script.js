@@ -1,6 +1,18 @@
+let targetTable = null;
+
+// Récupérer la table cible quand Grist charge le widget
 window.grist.ready({ requiredAccess: 'full' });
 
+window.grist.onRecords((records, mappings) => {
+    targetTable = mappings.tableId;
+});
+
 document.getElementById("importBtn").addEventListener("click", async () => {
+
+    if (!targetTable) {
+        alert("Le widget n’est pas lié à une table Grist. Associe-le à une table dans la configuration du widget.");
+        return;
+    }
 
     const centresInput = document.getElementById("centres").value.trim();
     if (!centresInput) {
@@ -25,7 +37,6 @@ document.getElementById("importBtn").addEventListener("click", async () => {
 
             const rows = results.data;
 
-            // Filtrer selon les 4 premiers chiffres du centre de coût
             const filtered = rows.filter(r => {
                 const cc = (r["Centre de coût"] || "").toString().substring(0, 4);
                 return centres.includes(cc);
@@ -39,14 +50,12 @@ document.getElementById("importBtn").addEventListener("click", async () => {
                 return;
             }
 
-            // Préparer les actions pour Grist
             const actions = filtered.map(r => ({
                 action: "AddRecord",
-                tableId: grist.docApi.tableId,
+                tableId: targetTable,
                 fields: r
             }));
 
-            // Envoyer à Grist
             await grist.docApi.applyUserActions(actions);
 
             document.getElementById("status").innerText = "Import terminé !";
