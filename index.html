@@ -1,168 +1,478 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Import filtré par centre financier</title>
 
-<!-- API Grist -->
-<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-
-<!-- CSV -->
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-<!-- Excel -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<h2 class="sr-only">Widget Grist — Import Excel filtré par centre financier</h2>
 
 <style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  label { display:block; margin-top:12px; font-weight:bold; }
-  input, select, button { margin-top:6px; padding:8px; }
-  #status { margin-top:20px; font-weight:bold; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); color: var(--color-text-primary); }
+
+  .header {
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .header-icon {
+    width: 32px; height: 32px; border-radius: var(--border-radius-md);
+    background: #E6F1FB; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-icon svg { width: 16px; height: 16px; }
+  .header-text h1 { font-size: 15px; font-weight: 500; }
+  .header-text p { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+  .body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .section-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--color-text-secondary); margin-bottom: 8px;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--color-border-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: 2rem 1.5rem; text-align: center; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    background: var(--color-background-secondary);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #378ADD;
+    background: #E6F1FB;
+  }
+  .drop-zone svg { width: 28px; height: 28px; color: var(--color-text-secondary); margin-bottom: 10px; }
+  .drop-zone p { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
+  .drop-zone strong { color: var(--color-text-primary); font-weight: 500; }
+  .drop-zone.has-file { border-style: solid; border-color: #378ADD; background: #E6F1FB; }
+  .file-name { font-size: 13px; font-weight: 500; color: #0C447C; margin-top: 4px; }
+
+  .cf-section { display: flex; flex-direction: column; gap: 8px; }
+  .cf-input-row { display: flex; gap: 8px; }
+  .cf-input-row input { flex: 1; }
+  .cf-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #E6F1FB; color: #0C447C;
+    font-size: 12px; font-weight: 500;
+    padding: 3px 10px 3px 12px; border-radius: 100px;
+    border: 0.5px solid #B5D4F4;
+  }
+  .tag button {
+    background: none; border: none; cursor: pointer; padding: 0;
+    color: #185FA5; font-size: 14px; line-height: 1; display: flex; align-items: center;
+  }
+  .tag button:hover { color: #E24B4A; }
+
+  .preview-box {
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    background: var(--color-background-secondary);
+    max-height: 220px; overflow: auto;
+  }
+  .preview-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+  .preview-table th {
+    background: var(--color-background-primary);
+    padding: 6px 10px; text-align: left; font-weight: 500;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    position: sticky; top: 0; white-space: nowrap;
+  }
+  .preview-table td {
+    padding: 5px 10px; border-bottom: 0.5px solid var(--color-border-tertiary);
+    white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+    color: var(--color-text-primary);
+  }
+  .preview-table tr:last-child td { border-bottom: none; }
+  .preview-table tr:hover td { background: var(--color-background-secondary); }
+  .preview-count {
+    font-size: 12px; color: var(--color-text-secondary);
+    padding: 6px 10px; border-top: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .highlight { color: #185FA5; font-weight: 500; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat-card {
+    background: var(--color-background-secondary);
+    border-radius: var(--border-radius-md); padding: 10px 12px;
+  }
+  .stat-card .s-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .stat-card .s-value { font-size: 20px; font-weight: 500; }
+  .s-blue { color: #185FA5; }
+  .s-green { color: #3B6D11; }
+  .s-amber { color: #854F0B; }
+
+  .actions { display: flex; gap: 8px; padding-top: 4px; }
+  .btn-primary {
+    flex: 1; padding: 9px 16px; border-radius: var(--border-radius-md);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 0.5px solid #185FA5; background: #185FA5; color: white;
+    transition: background 0.12s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-primary:hover { background: #0C447C; border-color: #0C447C; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: var(--color-background-secondary); border-color: var(--color-border-tertiary); color: var(--color-text-secondary); cursor: not-allowed; transform: none; }
+  .btn-secondary {
+    padding: 9px 14px; border-radius: var(--border-radius-md);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-primary);
+    transition: background 0.12s;
+  }
+  .btn-secondary:hover { background: var(--color-background-secondary); }
+  .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .status-bar {
+    border-radius: var(--border-radius-md); padding: 10px 14px;
+    font-size: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .status-bar.info { background: #E6F1FB; color: #0C447C; }
+  .status-bar.success { background: #EAF3DE; color: #27500A; }
+  .status-bar.error { background: #FCEBEB; color: #791F1F; }
+  .status-bar.warning { background: #FAEEDA; color: #633806; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-info { background: #185FA5; }
+  .dot-success { background: #3B6D11; }
+  .dot-error { background: #A32D2D; }
+  .dot-warning { background: #854F0B; }
+
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white; border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    padding: 1.5rem; text-align: center;
+    font-size: 12px; color: var(--color-text-secondary);
+  }
+
+  .hidden { display: none !important; }
+  input[type="file"] { display: none; }
 </style>
-</head>
 
-<body>
-<h2>Import filtré par centre financier</h2>
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="1.8">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Import Excel — filtrage par centre financier</h1>
+    <p>Sélectionnez les centres financiers (4 premiers chiffres du centre de coût)</p>
+  </div>
+</div>
 
-<label>Table cible :</label>
-<select id="tableSelect"></select>
+<div class="body">
 
-<label>Centres financiers (séparés par des virgules) :</label>
-<input type="text" id="centres" placeholder="Ex : 1101,1203,1402">
+  <div>
+    <div class="section-label">1 · Fichier Excel</div>
+    <div class="drop-zone" id="dropZone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 8px;display:block">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p><strong>Glissez un fichier .xlsx ici</strong> ou cliquez pour parcourir</p>
+      <p style="margin-top:4px;font-size:11px;">Formats acceptés : .xlsx, .xls</p>
+      <div class="file-name hidden" id="fileName"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
 
-<label>Fichier CSV ou Excel :</label>
-<input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+  <div>
+    <div class="section-label">2 · Centres financiers à importer</div>
+    <div class="cf-section">
+      <div class="cf-input-row">
+        <input type="text" id="cfInput" placeholder="Ex: 1234 (4 premiers chiffres)" maxlength="4" style="font-size:13px;">
+        <button class="btn-secondary" id="addCfBtn" style="white-space:nowrap;padding:8px 14px;">Ajouter</button>
+      </div>
+      <div class="cf-tags" id="cfTags">
+        <span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>
+      </div>
+    </div>
+  </div>
 
-<button id="importBtn">Importer dans Grist</button>
+  <div id="previewSection" class="hidden">
+    <div class="section-label">3 · Aperçu des données filtrées</div>
+    <div class="stats" id="statsRow">
+      <div class="stat-card"><div class="s-label">Lignes totales</div><div class="s-value s-blue" id="statTotal">—</div></div>
+      <div class="stat-card"><div class="s-label">Lignes filtrées</div><div class="s-value s-green" id="statFiltered">—</div></div>
+      <div class="stat-card"><div class="s-label">Colonnes</div><div class="s-value s-amber" id="statCols">—</div></div>
+    </div>
+    <div class="preview-box" style="margin-top:10px;">
+      <table class="preview-table" id="previewTable"></table>
+      <div class="preview-count" id="previewCount"></div>
+    </div>
+  </div>
 
-<div id="status"></div>
+  <div id="statusArea" class="hidden"></div>
 
+  <div class="actions">
+    <button class="btn-secondary" id="previewBtn" disabled>Aperçu</button>
+    <button class="btn-primary" id="importBtn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Sauvegarder dans Grist
+    </button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-window.grist.ready({ requiredAccess: 'full' });
+(function() {
 
-let tablesList = [];
-let targetTableId = null;
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileName = document.getElementById('fileName');
+  const cfInput = document.getElementById('cfInput');
+  const addCfBtn = document.getElementById('addCfBtn');
+  const cfTagsEl = document.getElementById('cfTags');
+  const previewSection = document.getElementById('previewSection');
+  const previewTable = document.getElementById('previewTable');
+  const previewCount = document.getElementById('previewCount');
+  const statusArea = document.getElementById('statusArea');
+  const previewBtn = document.getElementById('previewBtn');
+  const importBtn = document.getElementById('importBtn');
+  const statTotal = document.getElementById('statTotal');
+  const statFiltered = document.getElementById('statFiltered');
+  const statCols = document.getElementById('statCols');
 
-// Charger la liste des tables et remplir le menu déroulant
-async function loadTables() {
-  try {
-    tablesList = await grist.docApi.listTables();
+  let workbookData = null;
+  let filteredData = null;
+  let headers = [];
+  let centresFinanciers = [];
 
-    const select = document.getElementById("tableSelect");
-    select.innerHTML = "";
+  const CF_COLUMN = 'Centre de coût';
 
-    tablesList.forEach(t => {
-      const opt = document.createElement("option");
-      opt.value = t.id;
-      opt.textContent = t.tableName;
-      select.appendChild(opt);
-    });
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-    if (tablesList.length > 0) {
-      targetTableId = tablesList[0].id;
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      showStatus('error', 'Format invalide. Utilisez un fichier .xlsx ou .xls.');
+      return;
     }
-
-    select.addEventListener("change", () => {
-      targetTableId = select.value;
-    });
-
-  } catch (e) {
-    document.getElementById("status").innerText =
-      "Erreur lors du chargement des tables : " + e;
-  }
-}
-
-loadTables();
-
-document.getElementById("importBtn").addEventListener("click", async () => {
-
-  if (!targetTableId) {
-    alert("Aucune table sélectionnée.");
-    return;
-  }
-
-  const centresInput = document.getElementById("centres").value.trim();
-  if (!centresInput) {
-    alert("Merci d’indiquer au moins un centre financier.");
-    return;
-  }
-
-  const centres = centresInput.split(",").map(c => c.trim());
-
-  const file = document.getElementById("fileInput").files[0];
-  if (!file) {
-    alert("Merci de sélectionner un fichier CSV ou Excel.");
-    return;
-  }
-
-  document.getElementById("status").innerText = "Lecture du fichier…";
-
-  const ext = file.name.split(".").pop().toLowerCase();
-
-  if (ext === "csv") {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: results => processRows(results.data, centres),
-      error: err => document.getElementById("status").innerText = "Erreur CSV : " + err
-    });
-  }
-  else if (ext === "xlsx" || ext === "xls") {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        processRows(rows, centres);
-      } catch (err) {
-        document.getElementById("status").innerText = "Erreur Excel : " + err;
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+        workbookData = rows;
+        filteredData = null;
+        previewSection.classList.add('hidden');
+        dropZone.classList.add('has-file');
+        fileName.textContent = file.name;
+        fileName.classList.remove('hidden');
+        updateButtons();
+        showStatus('info', `Fichier chargé : ${rows.length} lignes détectées dans "${wb.SheetNames[0]}".`);
+      } catch(err) {
+        showStatus('error', 'Impossible de lire le fichier. Vérifiez qu\'il s\'agit d\'un fichier Excel valide.');
       }
     };
     reader.readAsArrayBuffer(file);
   }
-  else {
-    alert("Format non supporté. Utilise CSV, XLSX ou XLS.");
+
+  cfInput.addEventListener('keydown', e => { if (e.key === 'Enter') addCF(); });
+  addCfBtn.addEventListener('click', addCF);
+
+  function addCF() {
+    const val = cfInput.value.trim();
+    if (!val) return;
+    if (!/^\d{1,4}$/.test(val)) {
+      showStatus('warning', 'Saisissez uniquement des chiffres (1 à 4 chiffres).');
+      return;
+    }
+    const padded = val.padStart(4, '0');
+    if (centresFinanciers.includes(padded)) {
+      showStatus('warning', `Le centre ${padded} est déjà ajouté.`);
+      cfInput.value = '';
+      return;
+    }
+    centresFinanciers.push(padded);
+    cfInput.value = '';
+    renderTags();
+    updateButtons();
+    clearStatus();
   }
-});
 
-async function processRows(rows, centres) {
-
-  if (!rows || rows.length === 0) {
-    document.getElementById("status").innerText = "Aucune donnée trouvée.";
-    return;
+  function removeTag(cf) {
+    centresFinanciers = centresFinanciers.filter(c => c !== cf);
+    renderTags();
+    updateButtons();
   }
 
-  const filtered = rows.filter(r => {
-    const cc = (r["Centre de coût"] || "").toString().substring(0, 4);
-    return centres.includes(cc);
+  function renderTags() {
+    if (centresFinanciers.length === 0) {
+      cfTagsEl.innerHTML = '<span style="font-size:12px;color:var(--color-text-secondary);font-style:italic;">Aucun centre défini…</span>';
+      return;
+    }
+    cfTagsEl.innerHTML = centresFinanciers.map(cf =>
+      `<span class="tag">${cf}<button onclick="removeTag('${cf}')" title="Supprimer">×</button></span>`
+    ).join('');
+  }
+
+  window.removeTag = removeTag;
+
+  function updateButtons() {
+    const ready = workbookData && centresFinanciers.length > 0;
+    previewBtn.disabled = !ready;
+    importBtn.disabled = !ready;
+  }
+
+  previewBtn.addEventListener('click', () => {
+    runFilter();
+    renderPreview();
   });
 
-  document.getElementById("status").innerText =
-    filtered.length + " lignes retenues sur " + rows.length;
-
-  if (filtered.length === 0) {
-    alert("Aucune ligne ne correspond aux centres financiers indiqués.");
-    return;
+  function runFilter() {
+    if (!workbookData) return;
+    filteredData = workbookData.filter(row => {
+      const cc = String(row[CF_COLUMN] || '').replace(/\s/g, '');
+      const prefix = cc.substring(0, 4);
+      return centresFinanciers.includes(prefix);
+    });
+    headers = workbookData.length > 0 ? Object.keys(workbookData[0]) : [];
+    return filteredData;
   }
 
-  const actions = filtered.map(r => ({
-    action: "AddRecord",
-    tableId: targetTableId,
-    fields: r
-  }));
+  function renderPreview() {
+    if (!filteredData) return;
 
-  try {
-    await grist.docApi.applyUserActions(actions);
-    document.getElementById("status").innerText =
-      "Import terminé : " + filtered.length + " lignes importées.";
-  } catch (e) {
-    document.getElementById("status").innerText =
-      "Erreur lors de l’import : " + e;
+    statTotal.textContent = workbookData.length.toLocaleString('fr-FR');
+    statFiltered.textContent = filteredData.length.toLocaleString('fr-FR');
+    statCols.textContent = headers.length;
+
+    const preview = filteredData.slice(0, 50);
+    const ccIdx = headers.indexOf(CF_COLUMN);
+
+    let html = '<thead><tr>' +
+      headers.map(h => `<th>${h}</th>`).join('') +
+      '</tr></thead><tbody>';
+
+    if (preview.length === 0) {
+      html += `<tr><td colspan="${headers.length}" style="text-align:center;color:var(--color-text-secondary);padding:1rem;">Aucune ligne ne correspond aux centres sélectionnés.</td></tr>`;
+    } else {
+      html += preview.map(row =>
+        '<tr>' + headers.map((h, i) => {
+          const val = String(row[h] || '');
+          const isCF = i === ccIdx;
+          return `<td ${isCF ? 'class="highlight"' : ''}>${val}</td>`;
+        }).join('') + '</tr>'
+      ).join('');
+    }
+    html += '</tbody>';
+    previewTable.innerHTML = html;
+
+    if (filteredData.length > 50) {
+      previewCount.textContent = `Affichage des 50 premières lignes sur ${filteredData.length} filtrées.`;
+    } else {
+      previewCount.textContent = `${filteredData.length} ligne(s) correspondant aux centres : ${centresFinanciers.join(', ')}.`;
+    }
+
+    previewSection.classList.remove('hidden');
+
+    if (filteredData.length === 0) {
+      showStatus('warning', 'Aucune ligne ne correspond aux centres financiers saisis. Vérifiez les codes.');
+    } else {
+      showStatus('success', `${filteredData.length} ligne(s) trouvée(s) pour les centres : ${centresFinanciers.join(', ')}.`);
+    }
   }
-}
+
+  importBtn.addEventListener('click', async () => {
+    runFilter();
+    if (!filteredData || filteredData.length === 0) {
+      renderPreview();
+      showStatus('warning', 'Aucune donnée à importer. Vérifiez vos filtres.');
+      return;
+    }
+
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<div class="spinner"></div> Import en cours…';
+
+    try {
+      if (typeof grist === 'undefined') {
+        await simulateGristImport();
+        return;
+      }
+
+      const tableId = await getOrCreateTable();
+      await writeToGrist(tableId);
+    } catch(err) {
+      showStatus('error', 'Erreur lors de l\'import : ' + err.message);
+      importBtn.disabled = false;
+      importBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Sauvegarder dans Grist';
+    }
+  });
+
+  async function getOrCreateTable() {
+    const tables = await grist.docApi.listTables();
+    const targetName = 'Import_CF';
+    if (tables.includes(targetName)) {
+      await clearTable(targetName);
+      return targetName;
+    }
+    const cols = headers.map(h => ({ id: sanitizeColId(h), label: h, type: 'Text' }));
+    await grist.docApi.applyUserActions([['AddTable', targetName, cols]]);
+    return targetName;
+  }
+
+  async function clearTable(tableId) {
+    const rows = await grist.docApi.fetchTable(tableId);
+    if (rows && rows.id && rows.id.length > 0) {
+      await grist.docApi.applyUserActions([['BulkRemoveRecord', tableId, rows.id]]);
+    }
+  }
+
+  async function writeToGrist(tableId) {
+    const BATCH = 200;
+    let imported = 0;
+    for (let i = 0; i < filteredData.length; i += BATCH) {
+      const chunk = filteredData.slice(i, i + BATCH);
+      const colData = {};
+      headers.forEach(h => {
+        colData[sanitizeColId(h)] = chunk.map(row => String(row[h] || ''));
+      });
+      await grist.docApi.applyUserActions([['BulkAddOrReplaceRecord', tableId, chunk.map((_, j) => i + j + 1), colData]]);
+      imported += chunk.length;
+    }
+
+    showStatus('success', `Import terminé. ${imported} ligne(s) sauvegardées dans la table "Import_CF".`);
+    importBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Sauvegarder dans Grist';
+    importBtn.disabled = false;
+    renderPreview();
+  }
+
+  async function simulateGristImport() {
+    await new Promise(r => setTimeout(r, 1400));
+    showStatus('success', `[Mode démo] ${filteredData.length} lignes prêtes. Connectez ce widget à Grist pour l'import réel.`);
+    importBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Sauvegarder dans Grist';
+    importBtn.disabled = false;
+    renderPreview();
+  }
+
+  function sanitizeColId(name) {
+    return name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1');
+  }
+
+  function showStatus(type, msg) {
+    const dots = { info:'dot-info', success:'dot-success', error:'dot-error', warning:'dot-warning' };
+    statusArea.className = `status-bar ${type}`;
+    statusArea.innerHTML = `<div class="status-dot ${dots[type]}"></div><span>${msg}</span>`;
+    statusArea.classList.remove('hidden');
+  }
+  function clearStatus() { statusArea.classList.add('hidden'); }
+
+})();
 </script>
-
-</body>
-</html>
