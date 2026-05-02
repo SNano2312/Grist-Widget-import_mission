@@ -16,16 +16,16 @@
 <style>
   body { font-family: Arial, sans-serif; padding: 20px; }
   label { display:block; margin-top:12px; font-weight:bold; }
-  input, button { margin-top:6px; padding:8px; }
+  input, select, button { margin-top:6px; padding:8px; }
   #status { margin-top:20px; font-weight:bold; }
-  #tableName { margin-top:5px; font-style:italic; color:#555; }
 </style>
 </head>
 
 <body>
 <h2>Import filtré par centre financier</h2>
 
-<div id="tableName">Détection de la table…</div>
+<label>Table cible :</label>
+<select id="tableSelect"></select>
 
 <label>Centres financiers (séparés par des virgules) :</label>
 <input type="text" id="centres" placeholder="Ex : 1101,1203,1402">
@@ -38,40 +38,46 @@
 <div id="status"></div>
 
 <script>
-let targetTableId = null;
-
-// Initialisation Grist
 window.grist.ready({ requiredAccess: 'full' });
 
-// Détection automatique de la table
-async function detectTable() {
-  try {
-    const tables = await grist.docApi.listTables();
+let tablesList = [];
+let targetTableId = null;
 
-    if (!tables || tables.length === 0) {
-      document.getElementById("tableName").innerText =
-        "Aucune table trouvée dans ce document.";
-      return;
+// Charger la liste des tables et remplir le menu déroulant
+async function loadTables() {
+  try {
+    tablesList = await grist.docApi.listTables();
+
+    const select = document.getElementById("tableSelect");
+    select.innerHTML = "";
+
+    tablesList.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.tableName;
+      select.appendChild(opt);
+    });
+
+    if (tablesList.length > 0) {
+      targetTableId = tablesList[0].id;
     }
 
-    // On prend la première table du document
-    targetTableId = tables[0].id;
-
-    document.getElementById("tableName").innerText =
-      "Table détectée : " + tables[0].tableName;
+    select.addEventListener("change", () => {
+      targetTableId = select.value;
+    });
 
   } catch (e) {
-    document.getElementById("tableName").innerText =
-      "Erreur lors de la détection de la table : " + e;
+    document.getElementById("status").innerText =
+      "Erreur lors du chargement des tables : " + e;
   }
 }
 
-detectTable();
+loadTables();
 
 document.getElementById("importBtn").addEventListener("click", async () => {
 
   if (!targetTableId) {
-    alert("Impossible de détecter la table cible dans Grist.");
+    alert("Aucune table sélectionnée.");
     return;
   }
 
