@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Import filtré par centre financier</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h2>Import filtré par centre financier</h2>
+
+  <label>Centres financiers (séparés par des virgules) :</label>
+  <input type="text" id="centres" placeholder="Ex : 1101,1203,1402">
+
+  <label>Fichier CSV :</label>
+  <input type="file" id="fileInput" accept=".csv">
+
+  <button id="importBtn">Importer dans Grist</button>
+
+  <div id="status"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
